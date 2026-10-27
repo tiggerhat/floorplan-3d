@@ -9,6 +9,7 @@ A pure front-end tool for interior design on a floor plan: place furniture, remo
 **2D Floor Plan**
 - Displays the original floor plan at 1:60 / 1:100 scale, dimensions in mm
 - Drag 60+ furniture and appliance items from the library on the left (bedroom, living room, dining & kitchen, bathroom, appliances, study & leisure)
+- Add building elements including flues, exhaust and ventilation shafts, plumbing and electrical shafts, structural columns, and pipe enclosures; edit their width, depth, height, position, and color
 - Move, rotate (hold Shift for free angle), and resize items, with automatic snapping to walls
 - Measuring tool (snaps to nearby walls; hold Shift to lock horizontal / vertical)
 - Remove or modify non-load-bearing walls; load-bearing walls are marked separately
@@ -20,6 +21,7 @@ A pure front-end tool for interior design on a floor plan: place furniture, remo
 - Toggle between full-height and cut-away walls, time-of-day sunlight slider, night lighting
 - Detailed furniture models: cabinet door gaps and handles, upholstered headboards, metal and ceramic materials with environment reflections, and more
 - Select and drag furniture in 3D as well, kept in sync with the 2D plan in real time
+- Building elements appear in 3D, follow the wall cutaway height, and block walkthrough movement; hiding furniture or clearing the layout preserves them
 
 **Plans & Statistics**
 - Automatic calculation of room areas and net usable floor area
@@ -56,7 +58,7 @@ python3 -m http.server 8000
 | `Ctrl/⌘ + Z`, `Ctrl/⌘ + Shift + Z` | Undo, redo |
 | `F` | Fit to window |
 | `+` / `-` | Zoom in / out |
-| `[` / `]` | Show / hide the furniture library (left) and the side panel (right) |
+| `[` / `]` | Show / hide the object library (left) and the side panel (right) |
 | `Shift + F` | Fullscreen |
 | `Esc` | Cancel current action |
 | Walkthrough: `WASD` / arrow keys, `Shift`, `E` | Move, walk faster, open / close doors |
@@ -75,7 +77,7 @@ The floor plan data lives in `index.html`:
 - `ROOMS`: room polygons, names, and default floor materials
 - `WALLS` / `WINS`: walls and window openings
 - `MATS`: floor material names and unit prices
-- `LIB`: furniture library (type, name, default size, color)
+- `LIB`: object library (type, name, default size, color)
 - `buildFurniture()`: 3D models for each furniture type
 
 Edit this data to use your own floor plan.

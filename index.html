@@ -225,7 +225,7 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
 <div class="app">
   <header>
     <div class="grp" id="paneBtns">
-      <button class="btn chip" id="tgLib" data-en="◧ Library">◧ 家具库</button>
+      <button class="btn chip" id="tgLib" data-en="◧ Object Library">◧ 物体库</button>
       <button class="btn chip" id="tgPanel" data-en="Properties ◨">属性 ◨</button>
     </div>
     <div class="brand"><b data-en="3BR 2LR 2BA · Interior Design">三室两厅两卫 · 装修设计</b><span id="subtitle">原始户型 1:60 · 尺寸单位 mm</span></div>
@@ -309,6 +309,7 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
       <g id="gRooms"></g>
       <g id="gFurn"></g>
       <g id="gWalls"></g>
+      <g id="gFixed"></g>
       <g id="gOpen"></g>
       <g id="gLabels" pointer-events="none"></g>
       <g id="gDims" pointer-events="none"></g>
@@ -359,7 +360,9 @@ const NAMES_EN = {
   '主卧飘窗':'Master Bay Window', '子女房飘窗':"Children's Bay Window",
   '橡木地板':'Oak Flooring', '胡桃木地板':'Walnut Flooring', '800 地砖':'800 Tile', '600 地砖':'600 Tile', '大理石':'Marble',
   '300 防滑砖':'300 Anti-slip Tile', '水磨石':'Terrazzo', '满铺地毯':'Wall-to-wall Carpet',
-  '卧室':'Bedroom', '餐厨':'Dining & Kitchen', '卫浴':'Bathroom', '家电':'Appliances', '书房 · 休闲':'Study & Leisure',
+  '卧室':'Bedroom', '餐厨':'Dining & Kitchen', '卫浴':'Bathroom', '家电':'Appliances', '书房 · 休闲':'Study & Leisure', '建筑设施':'Building Elements',
+  '厨房烟道':'Kitchen Flue', '卫生间排气道':'Bathroom Vent Shaft', '给排水管井':'Plumbing Shaft',
+  '强电井':'Power Shaft', '弱电井':'Data Shaft', '通风井':'Ventilation Shaft', '结构柱':'Structural Column', '包管':'Pipe Enclosure',
   '双人床 1.8m':'Double Bed 1.8m', '双人床 1.5m':'Double Bed 1.5m', '双人床':'Double Bed', '单人床':'Single Bed', '婴儿床':'Crib',
   '床头柜':'Nightstand', '衣柜':'Wardrobe', '小衣柜':'Small Wardrobe', '梳妆台':'Dresser', '书桌':'Desk', '椅子':'Chair',
   '书架':'Bookshelf', '飘窗垫':'Bay Cushion', '三人沙发':'3-Seat Sofa', '双人沙发':'Loveseat', '转角沙发':'Corner Sofa',
@@ -496,7 +499,17 @@ const LIB = [
   {cat:'书房 · 休闲', items:[
     ['desk','长书桌',1600,700,'#d8c2a2'],['officechair','办公椅',620,620,'#4a4f55'],['bookshelf','大书架',1600,350,'#e2cfb4'],
     ['piano','立式钢琴',1500,600,'#1f1d1b'],['treadmill','跑步机',800,1800,'#3a3a3c'],['armchair','阅读椅',750,800,'#c9a98a']]},
+  {cat:'建筑设施', items:[
+    ['flue','厨房烟道',600,500,'#a7a29a'],['exhaust','卫生间排气道',350,350,'#a9b3b6'],
+    ['plumbing','给排水管井',600,400,'#9fb6bd'],['power','强电井',500,400,'#c5a993'],
+    ['data','弱电井',400,350,'#a6b8a7'],['ventshaft','通风井',600,500,'#a6b5b8'],
+    ['column','结构柱',400,400,'#8f897d'],['pipebox','包管',300,300,'#b1aaa0']]},
 ];
+const FIXED_TYPES = new Set(['flue','exhaust','plumbing','power','data','ventshaft','column','pipebox']);
+const isFixed = f => !!f && FIXED_TYPES.has(f.type);
+const FIXED_LABELS = {flue:'烟道',exhaust:'排气',plumbing:'水井',power:'强电',data:'弱电',ventshaft:'风井',column:'柱',pipebox:'包管'};
+const FIXED_LABELS_EN = {flue:'Flue',exhaust:'Exh',plumbing:'Water',power:'Power',data:'Data',ventshaft:'Vent',column:'Col',pipebox:'Pipe'};
+const DEFAULT_HEIGHT = 2800;
 const typeColor = t => { for (const c of LIB) for (const i of c.items) if (i[0]===t) return i[4]; return '#eee'; };
 
 let _n = 1;
@@ -625,6 +638,15 @@ const DASH = 'stroke-dasharray="4 3"';
 function furnSVG(t,w,d,c){
   const x = -w/2, y = -d/2, m = Math.min(w,d);
   switch (t){
+    case 'flue': case 'exhaust': case 'plumbing': case 'power': case 'data': case 'ventshaft': case 'pipebox': {
+      const inset = Math.min(70, m*.17), inner = shade(c,.65);
+      let s = rc(x,y,w,d,c) + rc(x+inset,y+inset,w-2*inset,d-2*inset,inner);
+      if (t === 'flue' || t === 'exhaust' || t === 'ventshaft') s += ln(x+inset,y+inset,x+w-inset,y+d-inset,'opacity=".55"') + ln(x+w-inset,y+inset,x+inset,y+d-inset,'opacity=".55"');
+      else if (t === 'plumbing' || t === 'pipebox') s += ec(0,0,m*.12,m*.12,shade(c,.4));
+      else s += ln(x+inset,0,x+w-inset,0,'opacity=".65"');
+      return s;
+    }
+    case 'column': return rc(x,y,w,d,c) + ln(x,y,x+w,y+d,'opacity=".35"') + ln(x+w,y,x,y+d,'opacity=".35"');
     case 'bed': {
       let s = rc(x,y,w,d,'#fbf8f2','rx="30"') + rc(x,y,w,Math.min(90,d*.05),shade(c,.62),'rx="20"');
       const ph = Math.min(360,d*.18), py = y+150;
@@ -736,12 +758,14 @@ function renderRooms(){
 function renderFurn(){
   const g = $('#gFurn');
   g.setAttribute('display', ui.layers.furn ? 'inline' : 'none');
-  g.innerHTML = state.furniture.map(f => {
+  const draw = f => {
     const fs = Math.max(80, Math.min(170, Math.min(f.w,f.d)*.2));
-    const label = Math.min(f.w,f.d) >= 380 && !NOLABEL.includes(f.type)
-      ? `<text transform="rotate(${-f.rot})" font-size="${fs}" text-anchor="middle" dominant-baseline="central" fill="#4a443c" opacity=".8" pointer-events="none">${esc(nm(f.name))}</text>` : '';
+    const label = Math.min(f.w,f.d) >= (isFixed(f) ? 300 : 380) && !NOLABEL.includes(f.type)
+      ? `<text transform="rotate(${-f.rot})" font-size="${fs}" text-anchor="middle" dominant-baseline="central" fill="#4a443c" opacity=".8" pointer-events="none">${esc(isFixed(f) ? (LANG === 'en' ? FIXED_LABELS_EN[f.type] : FIXED_LABELS[f.type]) : nm(f.name))}</text>` : '';
     return `<g class="furn" data-fid="${f.id}" transform="translate(${f.cx} ${f.cy}) rotate(${f.rot})">${furnSVG(f.type,f.w,f.d,f.color)}${label}</g>`;
-  }).join('');
+  };
+  g.innerHTML = state.furniture.filter(f => !isFixed(f)).map(draw).join('');
+  $('#gFixed').innerHTML = state.furniture.filter(isFixed).map(draw).join('');
 }
 
 function renderWalls(){
@@ -907,14 +931,15 @@ function overviewPanel(){
     <table>${matRows}</table>
     <div class="total"><span>${tr('地面材料合计','Flooring total')}</span><b>¥${Math.round(cost).toLocaleString()}</b></div></section>
   <section><h3>${tr('方案统计','Plan Stats')}</h3>
-    <div class="stats"><div><small>${tr('家具数量','Furniture')}</small><span class="big">${state.furniture.length}</span></div>
+    <div class="stats"><div><small>${tr('家具数量','Furniture')}</small><span class="big">${state.furniture.filter(f => !isFixed(f)).length}</span></div>
+      <div><small>${tr('建筑设施','Building elements')}</small><span class="big">${state.furniture.filter(isFixed).length}</span></div>
       <div><small>${tr('拆除墙体','Walls removed')}</small><span class="big">${fmt(demLen,1)}</span> m</div></div>
     <div class="actions"><button class="btn" id="clearMeasure">${tr('清除测量','Clear measures')} (${state.measures.length})</button>
       <button class="btn danger" id="clearFurn">${tr('清空布置','Clear layout')}</button></div></section>
   ${COARSE ? tr(`<section><h3>触屏操作</h3><div class="kbd">
     <kbd>单指拖动</kbd><span>空白处平移画面</span><kbd>双指</kbd><span>捏合缩放、拖动平移</span>
-    <kbd>家具库</kbd><span>点一下放到画面中央，或按住向右拖到指定位置</span>
-    <kbd>点家具</kbd><span>选中后拖动移动；拖顶部圆点旋转、右下方块改尺寸</span>
+    <kbd>物体库</kbd><span>点一下放到画面中央，或按住向右拖到指定位置</span>
+    <kbd>点物体</kbd><span>选中后拖动移动；拖顶部圆点旋转、右下方块改尺寸</span>
     <kbd>工具条</kbd><span>选中后底部可旋转 / 复制 / 删除</span>
     <kbd>测量</kbd><span>按住拖出一条线，或依次点两点</span>
     <kbd>3D 漫游</kbd><span>左下摇杆移动，拖动屏幕转向，点门开关</span>
@@ -959,10 +984,10 @@ function renderFab(){
 }
 
 function clearLayout(){
-  const n = state.furniture.length;
+  const n = state.furniture.filter(f => !isFixed(f)).length;
   if (!n) return toast(tr('当前没有布置任何家具', 'There is no furniture to clear'));
-  if (!confirm(tr(`确定清空全部 ${n} 件家具 / 家电吗？\n墙体、地面材料和测量线会保留，可点「撤销」恢复。`, `Remove all ${n} furniture / appliance items?\nWalls, flooring and measurements are kept. You can Undo this.`))) return;
-  ui.sel = null; mutate(() => state.furniture = []);
+  if (!confirm(tr(`确定清空全部 ${n} 件家具 / 家电吗？\n建筑设施、墙体、地面材料和测量线会保留，可点「撤销」恢复。`, `Remove all ${n} furniture / appliance items?\nBuilding elements, walls, flooring and measurements are kept. You can Undo this.`))) return;
+  ui.sel = null; mutate(() => state.furniture = state.furniture.filter(isFixed));
   toast(tr('已清空布置，可点「撤销」恢复', 'Layout cleared — Undo to restore'));
 }
 
@@ -989,7 +1014,7 @@ function syncPaneBtns(){
   const els = {lib:$('aside.lib'), panel:$('aside.right')}, n = narrow();
   const vis = k => n ? els[k].classList.contains('open') : !panes[k === 'lib' ? 'hideLib' : 'hidePanel'];
   $('#tgLib').classList.toggle('on', vis('lib')); $('#tgPanel').classList.toggle('on', vis('panel'));
-  $('#tgLib').title = vis('lib') ? tr('收起家具库 ( [ )', 'Hide library ( [ )') : tr('展开家具库 ( [ )', 'Show library ( [ )');
+  $('#tgLib').title = vis('lib') ? tr('收起物体库 ( [ )', 'Hide library ( [ )') : tr('展开物体库 ( [ )', 'Show library ( [ )');
   $('#tgPanel').title = vis('panel') ? tr('收起属性面板 ( ] )', 'Hide properties ( ] )') : tr('展开属性面板 ( ] )', 'Show properties ( ] )');
   $('#stage').classList.toggle('drawer-panel', n && vis('panel'));   // 属性抽屉盖住画面时让出底部工具条
 }
@@ -1008,7 +1033,7 @@ function roomPanel(r){
     <div class="muted">${tr(`墙面面积（层高 2.8m，未扣门窗）约 ${fmt(perim(r.poly)*2.8,1)} m²`, `Wall area (2.8m ceiling, openings not deducted) ≈ ${fmt(perim(r.poly)*2.8,1)} m²`)}</div></section>
   <section><h3>${tr('地面材料','Flooring')}</h3><div class="mats">${mats}</div>
     <div class="total"><span>${tr('材料估价','Estimated cost')}</span><b>¥${Math.round(a*MATS[st.mat].price*1.05).toLocaleString()}</b></div></section>
-  <section><h3>${tr('房间内家具','Furniture in room')} <small>${tr(`${inside.length} 件`, `${inside.length} items`)}</small></h3>
+  <section><h3>${tr('房间内物体','Objects in room')} <small>${tr(`${inside.length} 件`, `${inside.length} items`)}</small></h3>
     <table>${inside.map(f => `<tr class="click" data-fid="${f.id}"><td>${esc(nm(f.name))}</td><td class="r muted">${f.w}×${f.d}</td></tr>`).join('') || `<tr><td class="muted">${tr('暂无','None')}</td></tr>`}</table>
     <div class="actions"><button class="btn" id="back">${tr('← 返回总览','← Back to overview')}</button></div></section>`;
 }
@@ -1021,7 +1046,7 @@ function bindRoomPanel(){
 }
 
 function furnPanel(f){
-  return `<section><h3>${tr('家具属性','Furniture')}</h3>
+  return `<section><h3>${isFixed(f) ? tr('建筑设施属性','Building Element') : tr('家具属性','Furniture')}</h3>
     <div class="form">
       <label class="full">${tr('名称','Name')}<input id="fName" value="${esc(nm(f.name))}"></label>
       <label>${tr('宽','Width')} (mm)<input type="number" id="fW" value="${f.w}" min="50" step="10"></label>
@@ -1029,6 +1054,7 @@ function furnPanel(f){
       <label>${tr('中心','Center')} X (mm)<input type="number" id="fX" value="${Math.round(f.cx)}" step="10"></label>
       <label>${tr('中心','Center')} Y (mm)<input type="number" id="fY" value="${Math.round(f.cy)}" step="10"></label>
       <label>${tr('旋转','Rotation')} (°)<input type="number" id="fR" value="${f.rot}" step="15"></label>
+      ${isFixed(f) ? `<label>${tr('高度','Height')} (mm)<input type="number" id="fH" value="${f.h || DEFAULT_HEIGHT}" min="100" step="10"></label>` : ''}
       <label>${tr('颜色','Color')}<input type="color" id="fC" value="${f.color}"></label>
     </div>
     <div class="muted" style="margin-top:8px">${tr('占地面积','Footprint')} ${fmt(f.w*f.d/1e6)} m²</div>
@@ -1037,7 +1063,7 @@ function furnPanel(f){
       <button class="btn" id="aTop">${tr('置于顶层','Bring to front')}</button><button class="btn" id="aBot">${tr('置于底层','Send to back')}</button>
       <button class="btn danger" id="aDel">${tr('删除','Delete')}</button><button class="btn" id="back">${tr('← 返回','← Back')}</button>
     </div></section>
-  <section class="muted" style="font-size:12px">${tr('拖动家具移动；拖动上方圆点旋转；拖动右下角方块调整尺寸。开启「贴墙吸附」后靠近墙面会自动贴齐。', 'Drag to move; drag the top dot to rotate; drag the bottom-right square to resize. With "Wall snap" on, items snap flush to nearby walls.')}</section>`;
+  <section class="muted" style="font-size:12px">${tr('拖动物体移动；拖动上方圆点旋转；拖动右下角方块调整尺寸。开启「贴墙吸附」后靠近墙面会自动贴齐。', 'Drag to move; drag the top dot to rotate; drag the bottom-right square to resize. With "Wall snap" on, items snap flush to nearby walls.')}</section>`;
 }
 function bindFurnPanel(f){
   const upd = (fn) => mutate(() => { const g = getF(f.id); if (g) fn(g); });
@@ -1045,6 +1071,7 @@ function bindFurnPanel(f){
   $('#fName').onchange = e => upd(g => g.name = e.target.value.trim() || g.name);
   num('#fW', (g,v) => g.w = Math.max(50, Math.round(v)));
   num('#fD', (g,v) => g.d = Math.max(50, Math.round(v)));
+  if (isFixed(f)) num('#fH', (g,v) => g.h = Math.max(100, Math.round(v)));
   num('#fX', (g,v) => g.cx = v); num('#fY', (g,v) => g.cy = v); num('#fR', (g,v) => g.rot = norm(v));
   $('#fC').onchange = e => upd(g => g.color = e.target.value);
   $('#aRot').onclick = () => rotateSel(90);
@@ -1080,6 +1107,7 @@ function pushOut(f){
 }
 function addItem(it, x, y){
   const [type,name,w,d,color] = it, f = F(type,name,Math.round(x/10)*10,Math.round(y/10)*10,w,d,0,color);
+  if (isFixed(f)) f.h = DEFAULT_HEIGHT;
   pushOut(f);
   ui.sel = {kind:'furn', id:f.id};
   mutate(() => type==='rug' ? state.furniture.unshift(f) : state.furniture.push(f));
@@ -1325,8 +1353,8 @@ function buildLib(){
     return `<div class="item" data-key="${ci}:${ii}" title="${tr('点击添加，或拖到平面图中的指定位置', 'Click to add, or drag onto the plan')}">
       <svg viewBox="${-w/2-pad} ${-d/2-pad} ${w+2*pad} ${d+2*pad}">${furnSVG(t,w,d,col)}</svg><b>${esc(nm(n))}</b><small>${w}×${d}</small></div>`;
   }).join('')}</div>`).join('') + `<div class="hint">${tr(
-    `家具按真实尺寸（mm）绘制。${COARSE ? '点一下放到画面中央，或按住向右拖到平面图 / 3D 地面上的指定位置（上下滑动为滚动列表）。' : '点击添加到画面中央，或直接拖到平面图 / 3D 地面上。'}添加后可在右侧修改宽深与颜色。`,
-    `Furniture is drawn at real size (mm). ${COARSE ? 'Tap to place at the center, or hold and drag right onto the plan / 3D floor (swipe up/down to scroll).' : 'Click to add at the center, or drag onto the plan / 3D floor.'} Edit size and color in the right panel afterwards.`)}</div>`;
+    `物体按真实尺寸（mm）绘制。${COARSE ? '点一下放到画面中央，或按住向右拖到平面图 / 3D 地面上的指定位置（上下滑动为滚动列表）。' : '点击添加到画面中央，或直接拖到平面图 / 3D 地面上。'}添加后可在右侧修改尺寸与颜色。`,
+    `Objects are drawn at real size (mm). ${COARSE ? 'Tap to place at the center, or hold and drag right onto the plan / 3D floor (swipe up/down to scroll).' : 'Click to add at the center, or drag onto the plan / 3D floor.'} Edit size and color in the right panel afterwards.`)}</div>`;
   document.querySelectorAll('.item').forEach(el => el.addEventListener('pointerdown', e => {
     if (e.button) return;
     libDrag = {el, id:e.pointerId, sx:e.clientX, sy:e.clientY, it:itemOf(el), ghost:null};
@@ -1413,9 +1441,9 @@ function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add
 let viewMode = '2d', switching = false;
 const is3D = () => viewMode === '3d';
 const TIPS = () => COARSE
-  ? {'2d':tr('点或拖动家具库添加 · 单指拖动平移 · 双指缩放 · 选中家具后底部工具条可旋转 / 复制 / 删除', 'Tap or drag from the library · 1 finger pans · pinch zooms · bottom bar rotates / duplicates / deletes'),
-     '3d':tr('单指旋转 · 双指缩放 / 平移 · 点家具或地面编辑 · 点门开关', '1 finger orbits · 2 fingers zoom / pan · tap furniture or floor to edit · tap doors to open')}
-  : {'2d':tr('拖动左侧家具到平面图 · 滚轮缩放 · 拖动空白处平移 · T 切换 3D', 'Drag furniture onto the plan · scroll to zoom · drag empty space to pan · T for 3D'),
+  ? {'2d':tr('点或拖动物体库添加 · 单指拖动平移 · 双指缩放 · 选中物体后底部工具条可旋转 / 复制 / 删除', 'Tap or drag from the library · 1 finger pans · pinch zooms · bottom bar rotates / duplicates / deletes'),
+     '3d':tr('单指旋转 · 双指缩放 / 平移 · 点物体或地面编辑 · 点门开关', '1 finger orbits · 2 fingers zoom / pan · tap objects or floor to edit · tap doors to open')}
+  : {'2d':tr('拖动左侧物体到平面图 · 滚轮缩放 · 拖动空白处平移 · T 切换 3D', 'Drag objects onto the plan · scroll to zoom · drag empty space to pan · T for 3D'),
      '3d':tr('3D 场景与平面方案实时同步 · 右侧面板修改会立即生效 · T 返回 2D', '3D stays in sync with the plan · panel edits apply instantly · T for 2D')};
 async function setView(m){
   if (m === viewMode || switching) return;
@@ -1528,7 +1556,7 @@ const opt = {cut:2.8, furn:true, labels:true, night:false, hour:10, mode:'orbit'
 
 let inited = false, active = false, raf = 0, anim = null, fly = null;
 let renderer, labelRenderer, scene, camera, orbit, walkCtl, hemi, sun, ground, glassMat, wallMat, capMat, frameMat;
-let archFloor, archUp, furnG, labelG, lampG, colliders = [], selKey = null, selHelper = null;
+let archFloor, archUp, furnG, fixedG, labelG, lampG, colliders = [], selKey = null, selHelper = null;
 let sigArch = '', sigFurn = '', sigLabels = '', grow = 1, furnGrow = 1;
 const doors = [], keys = {};
 
@@ -1567,8 +1595,8 @@ function init(){
   glassMat = new THREE.MeshPhysicalMaterial({color:0xcfe6ef, roughness:.05, transparent:true, opacity:.28, depthWrite:false, side:THREE.DoubleSide});
   wallMat = mat('#f4f1eb', {roughness:.92}); capMat = mat('#34312d', {roughness:.9}); frameMat = mat('#5d6166', {roughness:.5, metalness:.4});
 
-  archFloor = new THREE.Group(); archUp = new THREE.Group(); furnG = new THREE.Group(); labelG = new THREE.Group(); lampG = new THREE.Group();
-  scene.add(archFloor, archUp, furnG, labelG, lampG);
+  archFloor = new THREE.Group(); archUp = new THREE.Group(); furnG = new THREE.Group(); fixedG = new THREE.Group(); labelG = new THREE.Group(); lampG = new THREE.Group();
+  scene.add(archFloor, archUp, furnG, fixedG, labelG, lampG);
 
   const cv = renderer.domElement; let downAt = null, look = null;
   cv.addEventListener('pointerdown', e => {
@@ -1597,7 +1625,7 @@ function init(){
     const f = getF(fdrag.id), g = groundAt(e.clientX, e.clientY); if (!f || !g) return;
     fdrag.moved = true; cv.style.cursor = 'grabbing';
     [f.cx, f.cy] = snapMove(f, g.x - fdrag.ox, g.y - fdrag.oy);
-    furnG.children.find(o => o.userData.fid === f.id)?.position.set(wx(f.cx), 0, wz(f.cy));   // 拖动中只挪模型，松手再整体同步
+    (isFixed(f) ? fixedG : furnG).children.find(o => o.userData.fid === f.id)?.position.set(wx(f.cx), 0, wz(f.cy));
   });
   const endF = e => {
     if (!fdrag || e.pointerId !== fdrag.pid) return;
@@ -1787,6 +1815,18 @@ const plate = (g, r, x, y, z) => g.add(lathe([[0, 0], [r*.6, 0], [r*.72, .008], 
 function buildFurniture(f){
   const g = new THREE.Group(), w = M(f.w), d = M(f.d), c = f.color || '#ddd', bz = -d/2, R = rng(Math.round(f.w*7 + f.d*13 + f.cx + f.cy));
   switch (f.type){
+    case 'flue': case 'exhaust': case 'plumbing': case 'power': case 'data': case 'ventshaft': case 'column': case 'pipebox': {
+      const h = Math.min(M(f.h || DEFAULT_HEIGHT), opt.cut);
+      if (f.type === 'column' || f.type === 'pipebox' || w < .2 || d < .2){
+        g.add(box(w,h,d,mat(c,{roughness:.95})));
+      } else {
+        const t = Math.min(.08,w*.22,d*.22), shell = mat(c,{roughness:.9});
+        g.add(box(w,h,t,shell,0,0,-d/2+t/2),box(w,h,t,shell,0,0,d/2-t/2));
+        g.add(box(t,h,d-2*t,shell,-w/2+t/2,0,0),box(t,h,d-2*t,shell,w/2-t/2,0,0));
+        g.add(box(w-2*t,.012,d-2*t,mat('#333c40',{roughness:1}),0,0,0));
+      }
+      break;
+    }
     case 'bed': {
       const fr = woodM('#8d7258'), fab = fabric(c), fh = .3, mt = .22, top = fh + mt, n = Math.max(3, Math.round(w/.28)), sw = (w - .04)/n;
       g.add(box(w - .12, .06, d - .14, '#4a3e33', 0, 0, .03), rbox(w, fh - .06, d - .08, fr, 0, .06, .04, .015));        // 内缩踢脚 + 床箱
@@ -2351,8 +2391,8 @@ function buildArch(){
 }
 
 function buildFurn(){
-  clearGroup(furnG);
-  state.furniture.forEach(f => furnG.add(buildFurniture(f)));
+  clearGroup(furnG); clearGroup(fixedG);
+  state.furniture.forEach(f => (isFixed(f) ? fixedG : furnG).add(buildFurniture(f)));
   furnG.visible = opt.furn; selKey = null; applyGrow();
 }
 
@@ -2376,7 +2416,7 @@ function buildLabels(){
 // 只重建变化的部分
 function sync(force){
   if (!inited || (!active && !force)) return;
-  const a = JSON.stringify([state.rooms, state.demolished, opt.cut]), f = JSON.stringify(state.furniture), l = JSON.stringify([state.rooms, opt.cut]);
+  const a = JSON.stringify([state.rooms, state.demolished, opt.cut]), f = JSON.stringify([state.furniture,opt.cut]), l = JSON.stringify([state.rooms, opt.cut]);
   if (force || a !== sigArch){ sigArch = a; buildArch(); }
   if (force || f !== sigFurn){ sigFurn = f; buildFurn(); }
   if (force || l !== sigLabels){ sigLabels = l; buildLabels(); }
@@ -2388,6 +2428,7 @@ function applyGrow(){
   if (!inited) return;
   archUp.scale.y = Math.max(grow, .001);
   furnG.scale.y = Math.max(furnGrow, .001);
+  fixedG.scale.y = Math.max(grow, .001);
   lampG.visible = grow > .99;
 }
 
@@ -2490,7 +2531,7 @@ function pick(e){
   if (!e) ptr.set(0, 0);
   else { const r = renderer.domElement.getBoundingClientRect(); ptr.set((e.clientX - r.left)/r.width*2 - 1, -(e.clientY - r.top)/r.height*2 + 1); }
   ray.setFromCamera(ptr, camera);
-  const hits = ray.intersectObjects([...(opt.furn ? [furnG] : []), archUp, archFloor], true);
+  const hits = ray.intersectObjects([...(opt.furn ? [furnG] : []), fixedG, archUp, archFloor], true);
   for (const h of hits){
     let o = h.object;
     if (o.material === glassMat) continue;
@@ -2523,7 +2564,7 @@ function updateSel(){
   if (key !== selKey){
     selKey = key;
     if (selHelper){ scene.remove(selHelper); selHelper.geometry.dispose(); selHelper = null; }
-    const g = key && furnG.children.find(g => g.userData.fid === key);
+    const g = key && [...furnG.children,...fixedG.children].find(g => g.userData.fid === key);
     if (g){ selHelper = new THREE.BoxHelper(g, 0xb5653a); scene.add(selHelper); }
   }
   if (selHelper) selHelper.update();
@@ -2586,6 +2627,11 @@ function setMode(m){
 }
 function blocked(x, z, r = .22){
   for (const [x0, z0, x1, z1] of colliders) if (x > x0 - r && x < x1 + r && z > z0 - r && z < z1 + r) return true;
+  for (const f of state.furniture.filter(isFixed)){
+    if ((f.h || DEFAULT_HEIGHT) < 800) continue;
+    const {hw,hh} = aabb(f);
+    if (x > wx(f.cx-hw)-r && x < wx(f.cx+hw)+r && z > wz(f.cy-hh)-r && z < wz(f.cy+hh)+r) return true;
+  }
   for (const d of doors){
     const a = d.pivot.rotation.y, px = d.pivot.position.x, pz = d.pivot.position.z, ex = px + Math.cos(a)*.9, ez = pz - Math.sin(a)*.9;
     const t = clamp01(((x-px)*(ex-px) + (z-pz)*(ez-pz)) / ((ex-px)**2 + (ez-pz)**2));
@@ -2641,7 +2687,7 @@ function bindUI(){
   document.querySelectorAll('[data-cut]').forEach(b => b.onclick = () => { if (opt.mode === 'walk') return; opt.cut = +b.dataset.cut; syncCutBtns(); sync(); });
   document.querySelectorAll('#toggles3d .btn').forEach(b => b.onclick = () => {
     const k = b.dataset.t; opt[k] = !opt[k]; b.classList.toggle('on', opt[k]);
-    if (k === 'furn'){ furnG.visible = opt.furn; if (!opt.furn && ui.sel?.kind === 'furn') window.select(null); }
+    if (k === 'furn'){ furnG.visible = opt.furn; if (!opt.furn && ui.sel?.kind === 'furn' && !isFixed(getF(ui.sel.id))) window.select(null); }
     if (k === 'labels') showLabels(opt.labels && opt.mode === 'orbit' && !anim);
     if (k === 'night') applyLight();
   });
